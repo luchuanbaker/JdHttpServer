@@ -122,7 +122,7 @@ public class JDMain {
 						}
 					}
 				} else {
-					return "找不到文件：" + fullPath;
+					return "File Not Found：" + fullPath;
 				}
 			}
 		}

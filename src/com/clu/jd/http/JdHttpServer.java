@@ -16,9 +16,6 @@ import com.clu.jd.JDMain;
 
 public class JdHttpServer {
 
-	/**
-	 * WEB_ROOT是HTML和其它文件存放的目录. 这里的WEB_ROOT为工作目录下的webroot目录
-	 */
 	//	public static final String		WEB_ROOT			= System.getProperty("user.dir") + File.separator + "src";
 
 	/**
@@ -46,7 +43,6 @@ public class JdHttpServer {
 			}
 		}
 		JdHttpServer server = new JdHttpServer();
-		//等待连接请求
 		server.waitRequest();
 	}
 
@@ -58,7 +54,6 @@ public class JdHttpServer {
 
 	private void startServer() {
 		try {
-			//服务器套接字对象
 			this.serverSocket = new ServerSocket(JdHttpServer.PORT, 50, InetAddress.getByName("127.0.0.1"));
 			Logger.info("JdHttpServer start up, bind port: " + JdHttpServer.PORT);
 			startAutoExitThread();
@@ -167,7 +162,6 @@ public class JdHttpServer {
 					InputStream input = socket.getInputStream();
 					OutputStream output = socket.getOutputStream();
 
-					// 创建Request对象并解析
 					Request request = new Request(input);
 					Logger.info("process request: " + request.getUri());
 					if (request.getUri() != null && request.getUri().startsWith(URL_PREFIX)) {
@@ -175,9 +169,9 @@ public class JdHttpServer {
 						try {
 							filePath = URLDecoder.decode(filePath, JdHttpServer.ENCODING);
 						} catch (Exception e) {
+							// ignore
 						}
 
-						// 创建 Response 对象
 						Response response = new Response(output);
 						// response.sendStaticResponse(request.getUri());
 						String source = JDMain.decompile(filePath, filePath);

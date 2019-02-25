@@ -25,7 +25,6 @@ public class Response {
         /*byte[] bytes = new byte[BUFFER_SIZE];
         FileInputStream fis = null;
         try {
-            //将web文件写入到OutputStream字节流中
             File file;
             if (path != null && (file = new File(HttpServer.WEB_ROOT, path)).exists() && file.isFile()) {
                 fis = new FileInputStream(file);
