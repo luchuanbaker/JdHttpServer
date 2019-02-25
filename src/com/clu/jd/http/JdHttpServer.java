@@ -16,9 +16,6 @@ import com.clu.jd.JDMain;
 
 public class JdHttpServer {
 
-	/**
-	 * WEB_ROOT是HTML和其它文件存放的目录. 这里的WEB_ROOT为工作目录下的webroot目录
-	 */
 	//	public static final String		WEB_ROOT			= System.getProperty("user.dir") + File.separator + "src";
 
 	/**
