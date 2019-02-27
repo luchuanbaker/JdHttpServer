@@ -9,8 +9,8 @@ import com.clu.jd.http.JdHttpServer;
 import com.clu.jd.procyon.ProcyonDecompiler;
 
 public class JDMain {
-	private static Throwable			t						= null;
-	private static String				dllFilePath				= null;
+	private static Throwable			t					= null;
+	private static String				dllFilePath			= null;
 
 	static {
 		try {
@@ -45,8 +45,8 @@ public class JDMain {
 	}
 
 	// private static final List<String>	SUPPORTED_FILE_SUFFIXES	= Arrays.asList(new String[]{ ".zip", ".jar" });
-	private static final JDSourceMapper	JD_SOURCE_MAPPER		= new JDSourceMapper();
-	private static final int			MAGIC					= 0xCAFEBABE;
+	private static final JDSourceMapper	JD_SOURCE_MAPPER	= new JDSourceMapper();
+	public static final int				MAGIC				= 0xCAFEBABE;
 
 	public static void main(String[] args) {
 		if (args.length == 0) {

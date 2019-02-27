@@ -35,10 +35,7 @@ public class ProcyonDecompiler {
 		metadataSystem.setEagerMethodLoadingEnabled(false);
 	}
 	
-	public static final ThreadLocal<ClassInfo> CLASS_INFO = new ThreadLocal<>();
-	
 	public static String decompile(String basePath, String classFileFullName, ClassInfo classInfo) {
-		CLASS_INFO.set(classInfo);
 		try {
 			String classPathStr = new File(basePath, classFileFullName).getAbsolutePath();
 
@@ -58,8 +55,6 @@ public class ProcyonDecompiler {
 		} catch (Exception e) {
 			Logger.error(e.getMessage(), e);
 			return null;
-		} finally {
-			CLASS_INFO.remove();
 		}
 	}
 
