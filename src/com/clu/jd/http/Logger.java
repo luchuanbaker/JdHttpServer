@@ -24,8 +24,7 @@ public class Logger {
 	}
 	
 	public static void error(String message, Throwable t) {
-		Logger.error(message);
-		Logger.error("\r\n" + getExceptionString(t));
+		Logger.error(message + "\r\n" + getExceptionString(t));
 	}
 	
 	private static String getExceptionString(Throwable t) {

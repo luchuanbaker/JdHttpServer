@@ -53,5 +53,9 @@ public class Request {
     public String getUri() {
         return uri;
     }
+    
+    public String getRequestString() {
+		return requestString;
+	}
 
 }

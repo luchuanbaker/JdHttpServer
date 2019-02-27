@@ -2,10 +2,11 @@ package com.clu.jd;
 
 import java.io.*;
 import java.net.URL;
-import java.util.Arrays;
-import java.util.List;
 
 import jd.ide.eclipse.editors.JDSourceMapper;
+
+import com.clu.jd.http.JdHttpServer;
+import com.clu.jd.procyon.ProcyonDecompiler;
 
 public class JDMain {
 	private static Throwable			t						= null;
@@ -22,7 +23,7 @@ public class JDMain {
 			} else {
 				libName = "jd-x32.dll";
 			}
-			
+
 			File destFile = new File(tmpPath, libName);
 			if (!destFile.exists()) {
 				URL url = JDMain.class.getResource("/lib/" + libName);
@@ -43,7 +44,7 @@ public class JDMain {
 		}
 	}
 
-	private static final List<String>	SUPPORTED_FILE_SUFFIXES	= Arrays.asList(new String[]{ ".zip", ".jar" });
+	// private static final List<String>	SUPPORTED_FILE_SUFFIXES	= Arrays.asList(new String[]{ ".zip", ".jar" });
 	private static final JDSourceMapper	JD_SOURCE_MAPPER		= new JDSourceMapper();
 	private static final int			MAGIC					= 0xCAFEBABE;
 
@@ -59,7 +60,7 @@ public class JDMain {
 			System.out.println(getException(t));
 		} else {
 			try {
-				String content = decompile(args[0], args[1]);
+				String content = decompile(args[0]);
 
 				System.out.println(content);
 			} catch (Exception e) {
@@ -74,83 +75,68 @@ public class JDMain {
 		return writer.toString();
 	}
 
-	public static String decompile(String inputFile, String fullPath) throws Exception {
-		fullPath = fullPath.replace("\\", "/");
-		String basePath = null;
+	/**
+	 * 反编译
+	 * @param inputFile 要反编译的class文件 C:\Temp\AA.tmp
+	 * @return
+	 */
+	public static String decompile(String inputFile) {
+		String fullPath = inputFile.replace("\\", "/");
+		String classBasePath = null;
 
-		String className = getClassNameFromClassFile(new File(inputFile));
+		File classFile = new File(inputFile);
+		ClassInfo classInfo = getClassInfoFromClassFile(classFile);
+		if (classInfo == null) {
+			return null;
+		}
 		String classFileFullName = null;
-		if (className != null) {
-			classFileFullName = className + ".class";
-			if (fullPath.endsWith(classFileFullName)) {
-				basePath = fullPath.substring(0, fullPath.lastIndexOf("/" + classFileFullName));
-			}
+		classFileFullName = classInfo.classQualifiedName + ".class";
+		if (fullPath.endsWith(classFileFullName)) {
+			// 目录结构和类名一致，一般是解压好的jar或者是编译的输出目录
+			classBasePath = fullPath.substring(0, fullPath.lastIndexOf("/" + classFileFullName));
+		} else {
+			// 不一致，直接以class文件所在目录为根目录
+			classBasePath = classFile.getParentFile().getAbsolutePath();
+			classFileFullName = classFile.getName();
 		}
-		if (basePath == null) {
-			boolean isFromJar = false;
-			String fileSuffix = null;
-			String fullPathLower = fullPath.toLowerCase();
-			for (String suffix : SUPPORTED_FILE_SUFFIXES) {
-				if (fullPathLower.contains(suffix)) {
-					isFromJar = true;
-					fileSuffix = suffix;
-					break;
-				}
-			}
-			if (isFromJar) {
-				int index = fullPathLower.lastIndexOf(fileSuffix);
-				basePath = fullPath.substring(0, index + fileSuffix.length());
-				classFileFullName = fullPath.substring(index + fileSuffix.length() + 1);
-			} else {
-				File classFile = new File(fullPath);
-				if (classFile.exists()) {
-					File baseFile = classFile;
-					String[] segments = fullPath.split("/");
-					int count = 0;
-					while (baseFile.getParentFile() != null) {
-						baseFile = baseFile.getParentFile();
-						count++;
-						StringBuilder classFullNameBuilder = new StringBuilder();
-						for (int i = segments.length - count; i < segments.length; i++) {
-							classFullNameBuilder.append(segments[i]).append("/");
-						}
-						classFullNameBuilder.deleteCharAt(classFullNameBuilder.length() - 1);
+		return doDecompile(classBasePath, classFileFullName, classInfo, JdHttpServer.ENGINE);
+	}
 
-						String content = JD_SOURCE_MAPPER.decompile(baseFile.getAbsolutePath(), classFullNameBuilder.toString());
-						if (content != null) {
-							return content;
-						}
-					}
-				} else {
-					return "File Not Found：" + fullPath;
-				}
-			}
+	private static String doDecompile(String basePath, String classFileFullName, ClassInfo classInfo, int engine) {
+		String source = null;
+		if (engine == JdHttpServer.ENGINE_JD_CORE || engine == JdHttpServer.ENGINE_ALL) {
+			source = JD_SOURCE_MAPPER.decompile(basePath, classFileFullName);
 		}
-		if (basePath != null) {
-			String content = null;
-			if (new File(basePath).exists()) {
-				content = JD_SOURCE_MAPPER.decompile(basePath, classFileFullName);
-			} else {
-				File tmpClassFile = new File(inputFile);
-				content = JD_SOURCE_MAPPER.decompile(tmpClassFile.getParent(), tmpClassFile.getName());
-			}
-			return content;
+
+		if (engine == JdHttpServer.ENGINE_PROCYON || source == null && engine == JdHttpServer.ENGINE_ALL) {
+			source = ProcyonDecompiler.decompile(basePath, classFileFullName, classInfo);
 		}
-		return null;
+		return source;
+	}
+
+	public static class ClassInfo {
+		public String	classQualifiedName;
+		public int		jdkVersion;
+
+		public ClassInfo(String classQualifiedName, int jdkVersion) {
+			this.classQualifiedName = classQualifiedName;
+			this.jdkVersion = jdkVersion;
+		}
 	}
 
 	@SuppressWarnings("unused")
-	private static String getClassNameFromClassFile(File classFile) {
-		String className = null;
+	private static ClassInfo getClassInfoFromClassFile(File classFile) {
+		String classQualifiedName = null;
 		DataInputStream in = null;
+		int minorVersion = 0;
+		int majorVersion = 0;
 		try {
 			in = new DataInputStream(new FileInputStream(classFile));
 			if (in.readInt() != MAGIC) {
 				throw new IOException("Not class file!");
 			}
-			int minor_version = in.readUnsignedShort();
-
-			int major_version = in.readUnsignedShort();
+			minorVersion = in.readUnsignedShort();
+			majorVersion = in.readUnsignedShort();
 
 			int count = in.readUnsignedShort();
 			Object[] constants = (Object[]) null;
@@ -160,37 +146,52 @@ public class JDMain {
 					byte tag = in.readByte();
 					switch (tag) {
 						case 7:
-							constants[i] = new Object[]{ Byte.valueOf(tag), Integer.valueOf(in.readUnsignedShort()) };
+							constants[i] = new Object[]{ tag, in.readUnsignedShort() };
 							break;
 						case 9:
-							constants[i] = new Object[]{ Byte.valueOf(tag), Integer.valueOf(in.readUnsignedShort()), Integer.valueOf(in.readUnsignedShort()) };
+							constants[i] = new Object[]{ tag, in.readUnsignedShort(), in.readUnsignedShort() };
 							break;
 						case 10:
-							constants[i] = new Object[]{ Byte.valueOf(tag), Integer.valueOf(in.readUnsignedShort()), Integer.valueOf(in.readUnsignedShort()) };
+							constants[i] = new Object[]{ tag, in.readUnsignedShort(), in.readUnsignedShort() };
 							break;
 						case 11:
-							constants[i] = new Object[]{ Byte.valueOf(tag), Integer.valueOf(in.readUnsignedShort()), Integer.valueOf(in.readUnsignedShort()) };
+							constants[i] = new Object[]{ tag, in.readUnsignedShort(), in.readUnsignedShort() };
 							break;
 						case 8:
-							constants[i] = new Object[]{ Byte.valueOf(tag), Integer.valueOf(in.readUnsignedShort()) };
+							constants[i] = new Object[]{ tag, in.readUnsignedShort() };
 							break;
 						case 3:
-							constants[i] = new Object[]{ Byte.valueOf(tag), Integer.valueOf(in.readInt()) };
+							constants[i] = new Object[]{ tag, in.readInt() };
 							break;
 						case 4:
-							constants[i] = new Object[]{ Byte.valueOf(tag), Float.valueOf(in.readFloat()) };
+							constants[i] = new Object[]{ tag, in.readFloat() };
 							break;
 						case 5:
-							constants[(i++)] = new Object[]{ Byte.valueOf(tag), Long.valueOf(in.readLong()) };
+							constants[(i++)] = new Object[]{ tag, in.readLong() };
 							break;
 						case 6:
-							constants[(i++)] = new Object[]{ Byte.valueOf(tag), Double.valueOf(in.readDouble()) };
+							constants[(i++)] = new Object[]{ tag, in.readDouble() };
 							break;
 						case 12:
-							constants[i] = new Object[]{ Byte.valueOf(tag), Integer.valueOf(in.readUnsignedShort()), Integer.valueOf(in.readUnsignedShort()) };
+							constants[i] = new Object[]{ tag, in.readUnsignedShort(), in.readUnsignedShort() };
 							break;
 						case 1:
-							constants[i] = new Object[]{ Byte.valueOf(tag), in.readUTF() };
+							constants[i] = new Object[]{ tag, in.readUTF() };
+							break;
+						case 15:
+							constants[i] = new Object[]{ tag, in.readByte(), in.readUnsignedShort() };
+							break;
+						case 16:
+							constants[i] = new Object[]{ tag, in.readUnsignedShort() };
+							break;
+						case 18:
+							constants[i] = new Object[]{ tag, in.readUnsignedShort(), in.readUnsignedShort() };
+							break;
+						case 19:
+							constants[i] = new Object[]{ tag, in.readUnsignedShort() };
+							break;
+						case 20:
+							constants[i] = new Object[]{ tag, in.readUnsignedShort() };
 							break;
 						case 2:
 						default:
@@ -204,7 +205,7 @@ public class JDMain {
 			int super_class = in.readUnsignedShort();
 
 			int nameIndex = ((Integer) ((Object[]) constants[(this_class - 1)])[1]).intValue();
-			className = (String) ((Object[]) constants[(nameIndex - 1)])[1];
+			classQualifiedName = (String) ((Object[]) constants[(nameIndex - 1)])[1];
 		} catch (Exception localException) {
 			if (in != null) {
 				try {
@@ -220,6 +221,10 @@ public class JDMain {
 				}
 			}
 		}
-		return className;
+		if (classQualifiedName == null) {
+			return null;
+		} else {
+			return new ClassInfo(classQualifiedName, majorVersion);
+		}
 	}
 }

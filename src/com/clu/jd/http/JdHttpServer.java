@@ -34,12 +34,30 @@ public class JdHttpServer {
 
 	private static int				PORT				= 9989;
 
+	/**
+	 * 用于反编译的引擎：-1:全部，0：JD-Core，1：Procyon
+	 */
+	public static int				ENGINE				= -1;
+
+	/**
+	 * 优先使用JD-Core，如果失败了改为使用Procyon
+	 */
+	public static final int			ENGINE_ALL			= -1;
+	public static final int			ENGINE_JD_CORE		= 0;
+	public static final int			ENGINE_PROCYON		= 1;
+
 	public static void main(String[] args) {
 		if (args != null && args.length > 0) {
-			String portString = args[0];
 			try {
-				PORT = Integer.parseInt(portString);
+				PORT = Integer.parseInt(args[0]);
 			} catch (Exception e) {
+			}
+
+			if (args.length > 1) {
+				try {
+					ENGINE = Integer.parseInt(args[1]);
+				} catch (Exception e) {
+				}
 			}
 		}
 		JdHttpServer server = new JdHttpServer();
@@ -164,6 +182,10 @@ public class JdHttpServer {
 
 					Request request = new Request(input);
 					Logger.info("process request: " + request.getUri());
+					if (String.valueOf(request.getRequestString()).equals("null") || String.valueOf(request.getUri()).contains("null")) {
+						// ingore
+						return;
+					}
 					if (request.getUri() != null && request.getUri().startsWith(URL_PREFIX)) {
 						String filePath = request.getUri().substring(URL_PREFIX.length());
 						try {
@@ -174,7 +196,10 @@ public class JdHttpServer {
 
 						Response response = new Response(output);
 						// response.sendStaticResponse(request.getUri());
-						String source = JDMain.decompile(filePath, filePath);
+						String source = JDMain.decompile(filePath);
+						if (source == null) {
+							source = "Error!";
+						}
 						response.sendText(source);
 					}
 					// Logger.info("cost " + (System.currentTimeMillis() - startTime));
