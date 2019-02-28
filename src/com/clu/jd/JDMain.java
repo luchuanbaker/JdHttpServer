@@ -106,10 +106,20 @@ public class JDMain {
 		String source = null;
 		if (engine == JdHttpServer.ENGINE_JD_CORE || engine == JdHttpServer.ENGINE_ALL) {
 			source = JD_SOURCE_MAPPER.decompile(basePath, classFileFullName);
+			if (source != null) {
+				source += "\n// by jd-core";
+			}
 		}
 
 		if (engine == JdHttpServer.ENGINE_PROCYON || source == null && engine == JdHttpServer.ENGINE_ALL) {
 			source = ProcyonDecompiler.decompile(basePath, classFileFullName, classInfo);
+			if (source != null) {
+				source += "\n// by procyon";
+			}
+		}
+		
+		if (source != null) {
+			source += "\n// class version: " + classInfo.jdkVersion;
 		}
 		return source;
 	}

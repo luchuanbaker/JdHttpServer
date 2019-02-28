@@ -16,11 +16,9 @@ import com.strobel.decompiler.languages.Languages;
 
 public class ProcyonDecompiler {
 
-	private static MetadataSystem metadataSystem;
-	private static DecompilationOptions decompilationOptions;
-	private static DecompilerSettings settings;
-	
-	
+	private static DecompilationOptions	decompilationOptions;
+	private static DecompilerSettings	settings;
+
 	static {
 		decompilationOptions = new DecompilationOptions();
 
@@ -30,14 +28,14 @@ public class ProcyonDecompiler {
 
 		decompilationOptions.setSettings(settings);
 		decompilationOptions.setFullDecompilation(true);
-
-		metadataSystem = new MetadataSystem(settings.getTypeLoader());
-		metadataSystem.setEagerMethodLoadingEnabled(false);
 	}
-	
+
 	public static String decompile(String basePath, String classFileFullName, ClassInfo classInfo) {
 		try {
 			String classPathStr = new File(basePath, classFileFullName).getAbsolutePath();
+
+			MetadataSystem metadataSystem = new MetadataSystem(settings.getTypeLoader());
+			metadataSystem.setEagerMethodLoadingEnabled(false);
 
 			TypeReference type = metadataSystem.lookupType(classPathStr);
 			TypeDefinition resolvedType = type.resolve();
