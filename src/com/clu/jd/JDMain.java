@@ -104,33 +104,65 @@ public class JDMain {
 
 	private static String doDecompile(String basePath, String classFileFullName, ClassInfo classInfo, int engine) {
 		String source = null;
-		if (engine == JdHttpServer.ENGINE_JD_CORE || engine == JdHttpServer.ENGINE_ALL) {
+		if (engine == JdHttpServer.ENGINE_JD_CORE || (engine == JdHttpServer.ENGINE_ALL && !classInfo.isKotlin)) {
 			source = JD_SOURCE_MAPPER.decompile(basePath, classFileFullName);
 			if (source != null) {
 				source += "\n// by jd-core";
 			}
 		}
 
-		if (engine == JdHttpServer.ENGINE_PROCYON || source == null && engine == JdHttpServer.ENGINE_ALL) {
+		if (source == null /*&& engine == JdHttpServer.ENGINE_PROCYON*/) {
 			source = ProcyonDecompiler.decompile(basePath, classFileFullName, classInfo);
 			if (source != null) {
 				source += "\n// by procyon";
 			}
 		}
-		
+
 		if (source != null) {
 			source += "\n// class version: " + classInfo.jdkVersion;
 		}
+		
+		// 修复Kotlin的@Metadata导致Beyond Compare异常的问题
+		/*if (classInfo.isKotlin) {
+			try {
+				StringBuilder newSource = new StringBuilder();
+				BufferedReader reader = new BufferedReader(new StringReader(source));
+				String line = null;
+				boolean processed = false;
+				while ((line = reader.readLine()) != null) {
+					if (!processed && line.startsWith("@Metadata")) {
+						final String startString =  "d1={\"";
+						int startIndex = line.indexOf(startString);
+						int endIndex = -1;
+						if (startIndex != -1) {
+							String leftString = line.substring(startIndex);
+							endIndex = leftString.indexOf("}");
+							if (endIndex != -1) {
+								line = line.substring(0, startIndex + startString.length()) + leftString.substring(endIndex - 1);
+							}
+						}
+						processed = true;
+					}
+					newSource.append(line).append("\r\n");
+				}
+				source = newSource.toString();
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+		}*/
+		
 		return source;
 	}
 
 	public static class ClassInfo {
 		public String	classQualifiedName;
 		public int		jdkVersion;
+		public boolean	isKotlin;
 
-		public ClassInfo(String classQualifiedName, int jdkVersion) {
+		public ClassInfo(String classQualifiedName, int jdkVersion, boolean isKotlin) {
 			this.classQualifiedName = classQualifiedName;
 			this.jdkVersion = jdkVersion;
+			this.isKotlin = isKotlin;
 		}
 	}
 
@@ -140,6 +172,7 @@ public class JDMain {
 		DataInputStream in = null;
 		int minorVersion = 0;
 		int majorVersion = 0;
+		boolean isKotlin = false;
 		try {
 			in = new DataInputStream(new FileInputStream(classFile));
 			if (in.readInt() != MAGIC) {
@@ -147,12 +180,12 @@ public class JDMain {
 			}
 			minorVersion = in.readUnsignedShort();
 			majorVersion = in.readUnsignedShort();
-
+			
 			int count = in.readUnsignedShort();
 			Object[] constants = (Object[]) null;
 			if (count > 0) {
-				constants = new Object[count - 1];
-				for (int i = 0; i < count - 1; i++) {
+				constants = new Object[count];
+				for (int i = 1; i < count; i++) {
 					byte tag = in.readByte();
 					switch (tag) {
 						case 7:
@@ -186,7 +219,11 @@ public class JDMain {
 							constants[i] = new Object[]{ tag, in.readUnsignedShort(), in.readUnsignedShort() };
 							break;
 						case 1:
-							constants[i] = new Object[]{ tag, in.readUTF() };
+							String s = in.readUTF();
+							constants[i] = new Object[]{ tag, s };
+							if (!isKotlin && "Lkotlin/Metadata;".equals(s)) {
+								isKotlin = true;
+							}
 							break;
 						case 15:
 							constants[i] = new Object[]{ tag, in.readByte(), in.readUnsignedShort() };
@@ -214,9 +251,45 @@ public class JDMain {
 
 			int super_class = in.readUnsignedShort();
 
-			int nameIndex = ((Integer) ((Object[]) constants[(this_class - 1)])[1]).intValue();
-			classQualifiedName = (String) ((Object[]) constants[(nameIndex - 1)])[1];
+			/*int interfaces_count = in.readUnsignedShort();
+			int[] interfaces = new int[interfaces_count];
+			for (int i = 0; i < interfaces_count; i++) {
+				interfaces[i] = in.readUnsignedShort();
+			}
+			int fields_count = in.readUnsignedShort();
+			FieldInfo[] fields = new FieldInfo[fields_count];
+			for (int i = 0; i < fields_count; i++) {
+				fields[i] = FieldInfo.read(in);
+			}
+
+			int methods_count = in.readUnsignedShort();
+			MethodInfo[] methods = new MethodInfo[methods_count];
+			for (int i = 0; i < methods_count; i++) {
+				methods[i] = MethodInfo.read(in);
+			}
+
+			int attributes_count = in.readUnsignedShort();
+			AttributeInfo[] attributes = new AttributeInfo[attributes_count];
+			for (int i = 0; i < attributes_count; i++) {
+				attributes[i] = AttributeInfo.read(in);
+			}*/
+
+			// find RuntimeVisibleAnnotations
+			/*for (int i = 0; i < attributes_count; i++) {
+				AttributeInfo info = attributes[i];
+				int nameIdex = info.attribute_name_index;
+				String name = (String) ((Object[]) constants[nameIdex])[1];
+				if ("RuntimeVisibleAnnotations".equals(name)) {
+					DataInputStream dataIn = new DataInputStream(new ByteArrayInputStream(info.info));
+					AttributeInfo attributeInfo = AttributeInfo.read(dataIn);
+					System.out.println(attributeInfo);
+				}
+			}*/
+
+			int nameIndex = ((Integer) ((Object[]) constants[(this_class)])[1]).intValue();
+			classQualifiedName = (String) ((Object[]) constants[(nameIndex)])[1];
 		} catch (Exception localException) {
+			localException.printStackTrace();
 			if (in != null) {
 				try {
 					in.close();
@@ -234,7 +307,141 @@ public class JDMain {
 		if (classQualifiedName == null) {
 			return null;
 		} else {
-			return new ClassInfo(classQualifiedName, majorVersion);
+			return new ClassInfo(classQualifiedName, majorVersion, isKotlin);
 		}
 	}
+
+	/*static class FieldInfo {
+		public int				access_flags;
+		public int				name_index;
+		public int				descriptor_index;
+		public int				attributes_count;
+		public AttributeInfo	attributes[];
+
+		public static FieldInfo read(DataInput in) throws IOException {
+			FieldInfo info = new FieldInfo();
+			info.access_flags = in.readUnsignedShort();
+			info.name_index = in.readUnsignedShort();
+			info.descriptor_index = in.readUnsignedShort();
+			info.attributes_count = in.readUnsignedShort();
+			info.attributes = new AttributeInfo[info.attributes_count];
+			for (int i = 0; i < info.attributes_count; i++) {
+				info.attributes[i] = AttributeInfo.read(in);
+			}
+			return info;
+		}
+	}
+
+	static class MethodInfo {
+		public int				access_flags;
+		public int				name_index;
+		public int				descriptor_index;
+		public int				attributes_count;
+		public AttributeInfo	attributes[];
+
+		public static MethodInfo read(DataInput in) throws IOException {
+			MethodInfo info = new MethodInfo();
+			info.access_flags = in.readUnsignedShort();
+			info.name_index = in.readUnsignedShort();
+			info.descriptor_index = in.readUnsignedShort();
+			info.attributes_count = in.readUnsignedShort();
+			info.attributes = new AttributeInfo[info.attributes_count];
+			for (int i = 0; i < info.attributes_count; i++) {
+				info.attributes[i] = AttributeInfo.read(in);
+			}
+			return info;
+		}
+	}
+
+	static class AttributeInfo {
+		public int	attribute_name_index;
+		public int	attribute_length;
+		public byte	info[];
+
+		public static AttributeInfo read(DataInput in) throws IOException {
+			AttributeInfo info = new AttributeInfo();
+			info.attribute_name_index = in.readUnsignedShort();
+			info.attribute_length = in.readInt();
+			info.info = new byte[info.attribute_length];
+			for (int i = 0; i < info.attribute_length; i++) {
+				info.info[i] = (byte) in.readUnsignedByte();
+			}
+			return info;
+		}
+	}
+
+	static class RuntimeVisibleAnnotationsAttribute {
+		public int			attribute_name_index;
+		public int			attribute_length;
+		public int			num_annotations;
+		public Annotation	annotations[];
+		public static RuntimeVisibleAnnotationsAttribute read(DataInput in) throws IOException {
+			RuntimeVisibleAnnotationsAttribute info = new RuntimeVisibleAnnotationsAttribute();
+			info.attribute_name_index = in.readUnsignedShort();
+			info.attribute_length = in.readInt();
+			
+			return info;
+		}
+	}
+
+	static class Annotation {
+		public int					type_index;
+		public int					num_element_value_pairs;
+		public ElementValuePair[]	element_value_pairs;
+		public static Annotation read(DataInput in) throws IOException {
+			Annotation info = new Annotation();
+			info.type_index = in.readUnsignedShort();
+			info.num_element_value_pairs = in.readUnsignedShort();
+			info.element_value_pairs = new ElementValuePair[info.num_element_value_pairs];
+			for (int i = 0; i < info.num_element_value_pairs; i++) {
+				info.element_value_pairs[i] = ElementValuePair.read(in);
+			}
+			return info;
+		}
+	}
+
+	static class ElementValuePair {
+		public int			element_name_index;
+		public ElementValue	value;
+		public static ElementValuePair read(DataInput in) {
+			return null;
+		}
+	}
+
+	static class ElementValue {
+		public int		tag;
+		*//**
+		 * union {
+	        u2 const_value_index;
+	
+	        {   u2 type_name_index;
+	            u2 const_name_index;
+	        } enum_const_value;
+	
+	        u2 class_info_index;
+	
+	        annotation annotation_value;
+	
+	        {   u2            num_values;
+	            element_value values[num_values];
+	        } array_value;
+	    } value;
+	    tag Item	Type	value Item	Constant Type
+		B	byte	const_value_index	CONSTANT_Integer
+		C	char	const_value_index	CONSTANT_Integer
+		D	double	const_value_index	CONSTANT_Double
+		F	float	const_value_index	CONSTANT_Float
+		I	int	const_value_index	CONSTANT_Integer
+		J	long	const_value_index	CONSTANT_Long
+		S	short	const_value_index	CONSTANT_Integer
+		Z	boolean	const_value_index	CONSTANT_Integer
+		s	String	const_value_index	CONSTANT_Utf8
+		e	Enum type	enum_const_value	Not applicable
+		c	Class	class_info_index	Not applicable
+		@	Annotation type	annotation_value	Not applicable
+		[	Array type	array_value	Not applicable
+		 *//*
+		public Object	value;
+	}*/
+
 }

@@ -399,7 +399,7 @@ public class JdInputTypeLoader implements ITypeLoader {
 		if (classQualifiedName == null) {
 			return null;
 		} else {
-			return new ClassInfo(classQualifiedName, majorVersion);
+			return new ClassInfo(classQualifiedName, majorVersion, false);
 		}
 	}
 	
