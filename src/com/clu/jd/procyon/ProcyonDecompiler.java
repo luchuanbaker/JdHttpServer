@@ -25,6 +25,8 @@ public class ProcyonDecompiler {
 		settings = DecompilerSettings.javaDefaults();
 		settings.setTypeLoader(new JdInputTypeLoader());
 		settings.setForceExplicitImports(true);
+		// 不要对中文进行Unicode转义
+		settings.setUnicodeOutputEnabled(true);
 
 		decompilationOptions.setSettings(settings);
 		decompilationOptions.setFullDecompilation(true);
@@ -43,6 +45,8 @@ public class ProcyonDecompiler {
 
 			StringWriter writer = new StringWriter();
 			PlainTextOutput output = new PlainTextOutput(writer);
+			// 支持Unicode字符输出
+			output.setUnicodeOutputEnabled(true);
 
 			/*TypeDecompilationResults results = */
 			Languages.java().decompileType(resolvedType, output, decompilationOptions);
@@ -55,5 +59,5 @@ public class ProcyonDecompiler {
 			return null;
 		}
 	}
-
+	
 }
