@@ -104,49 +104,37 @@ public class JDMain {
 
     private static String doDecompile(String basePath, String classFileFullName, ClassInfo classInfo, int engine) {
         String source = null;
-        PrintStream out = System.out;
-        try {
-            // 重定向，屏蔽中间控制台输出
-            System.setOut(new PrintStream(new OutputStream() {
-                @Override
-                public void write(int b) throws IOException {
-                    // ignore
-                }
-            }));
-            if ((engine == JdHttpServer.ENGINE_JD_CORE || (engine == JdHttpServer.ENGINE_ALL && !classInfo.isKotlin))) {
-                source = JD_SOURCE_MAPPER.decompile(basePath, classFileFullName);
-                if (source != null && source.contains("/* Error */")) {
-                    // 反编译包含错误，舍弃
-                    source = null;
-                }
-                if (source != null) {
-                    source += "\n// by jd-core";
-                }
+        if ((engine == JdHttpServer.ENGINE_JD_CORE || (engine == JdHttpServer.ENGINE_ALL && !classInfo.isKotlin))) {
+            source = JD_SOURCE_MAPPER.decompile(basePath, classFileFullName);
+            if (source != null && source.contains("/* Error */")) {
+                // 反编译包含错误，舍弃
+                source = null;
             }
-
-            if (source == null /*&& engine == JdHttpServer.ENGINE_PROCYON*/) {
-                source = ProcyonDecompiler.decompile(basePath, classFileFullName, classInfo);
-                if (source != null && source.contains("could not be decompiled")) {
-                    // 反编译包含错误，舍弃
-                    source = null;
-                }
-                if (source != null) {
-                    source += "\n// by procyon";
-                }
-            }
-
-            if (source == null) {
-                source = MyJadxDecompiler.decompile(basePath, classFileFullName, classInfo);
-                if (source != null) {
-                    source += "\n// by jadx";
-                }
-            }
-
             if (source != null) {
-                source += "\n// class version: " + classInfo.jdkVersion;
+                source += "\n// by jd-core";
             }
-        } finally {
-            System.setOut(out);
+        }
+
+        if (source == null /*&& engine == JdHttpServer.ENGINE_PROCYON*/) {
+            source = ProcyonDecompiler.decompile(basePath, classFileFullName, classInfo);
+            if (source != null && source.contains("could not be decompiled")) {
+                // 反编译包含错误，舍弃
+                source = null;
+            }
+            if (source != null) {
+                source += "\n// by procyon";
+            }
+        }
+
+        if (source == null) {
+            source = MyJadxDecompiler.decompile(basePath, classFileFullName, classInfo);
+            if (source != null) {
+                source += "\n// by jadx";
+            }
+        }
+
+        if (source != null) {
+            source += "\n// class version: " + classInfo.jdkVersion;
         }
 
 

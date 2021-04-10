@@ -199,7 +199,7 @@ public class JdHttpServer {
 						// response.sendStaticResponse(request.getUri());
 						String source = JDMain.decompile(filePath);
 						if (source == null) {
-							source = "Error!";
+							source = "Error!" + System.currentTimeMillis();
 						}
 						response.sendText(source);
 					}
