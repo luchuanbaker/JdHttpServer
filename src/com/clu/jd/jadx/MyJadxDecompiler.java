@@ -74,6 +74,8 @@ public class MyJadxDecompiler {
             return null;
         } finally {
             // 关闭资源，自动删除临时文件
+            // 原始版本是JadxDecompiler实现了Closeable接口，在close方法中调用了其reset()方法，
+            // 内部掉用了其closeInputs()方法，closeInputs方法同下。而JadxDecompiler用了try/auto-close语句
             for (ILoadResult loadedInput : loadedInputs) {
                 try {
                     loadedInput.close();
