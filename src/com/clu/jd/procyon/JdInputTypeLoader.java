@@ -1,14 +1,5 @@
 package com.clu.jd.procyon;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
-import java.util.Map;
-import java.util.logging.Level;
-import java.util.logging.Logger;
-
 import com.clu.jd.JDMain;
 import com.clu.jd.JDMain.ClassInfo;
 import com.strobel.assembler.InputTypeLoader;
@@ -19,6 +10,15 @@ import com.strobel.core.StringComparison;
 import com.strobel.core.StringUtilities;
 import com.strobel.core.VerifyArgument;
 import com.strobel.io.PathHelper;
+
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.Map;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * 替换自带的TypeLoader
@@ -399,7 +399,7 @@ public class JdInputTypeLoader implements ITypeLoader {
 		if (classQualifiedName == null) {
 			return null;
 		} else {
-			return new ClassInfo(classQualifiedName, majorVersion, false);
+			return new ClassInfo(classQualifiedName, majorVersion, minorVersion, false);
 		}
 	}
 	

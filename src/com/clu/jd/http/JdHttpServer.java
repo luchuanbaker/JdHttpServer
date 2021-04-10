@@ -1,5 +1,7 @@
 package com.clu.jd.http;
 
+import com.clu.jd.JDMain;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -11,8 +13,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
-
-import com.clu.jd.JDMain;
 
 public class JdHttpServer {
 
@@ -35,16 +35,17 @@ public class JdHttpServer {
 	private static int				PORT				= 9989;
 
 	/**
-	 * 用于反编译的引擎：-1:全部，0：JD-Core，1：Procyon
+	 * 用于反编译的引擎：-1:全部，0：JD-Core，1：Procyon，2: jadx
 	 */
 	public static int				ENGINE				= -1;
 
 	/**
-	 * 优先使用JD-Core，如果失败了改为使用Procyon
+	 * 优先使用jadx, 然后使用JD-Core，如果失败了改为使用Procyon
 	 */
 	public static final int			ENGINE_ALL			= -1;
 	public static final int			ENGINE_JD_CORE		= 0;
 	public static final int			ENGINE_PROCYON		= 1;
+	public static final int			ENGINE_JADX			= 1;
 
 	public static void main(String[] args) {
 		if (args != null && args.length > 0) {

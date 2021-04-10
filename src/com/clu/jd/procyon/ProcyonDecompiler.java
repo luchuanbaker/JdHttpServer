@@ -1,8 +1,5 @@
 package com.clu.jd.procyon;
 
-import java.io.File;
-import java.io.StringWriter;
-
 import com.clu.jd.JDMain.ClassInfo;
 import com.clu.jd.http.Logger;
 import com.strobel.assembler.metadata.DeobfuscationUtilities;
@@ -13,6 +10,9 @@ import com.strobel.decompiler.DecompilationOptions;
 import com.strobel.decompiler.DecompilerSettings;
 import com.strobel.decompiler.PlainTextOutput;
 import com.strobel.decompiler.languages.Languages;
+
+import java.io.File;
+import java.io.StringWriter;
 
 public class ProcyonDecompiler {
 
@@ -60,4 +60,8 @@ public class ProcyonDecompiler {
 		}
 	}
 	
+	public static void main(String[] args) {
+		System.out.println(decompile("F:\\Game06\\autodeploy\\target\\classes\\com\\touhao\\ads\\controller\\", "ApiController.class", null));
+	}
+
 }
